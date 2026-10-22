@@ -152,7 +152,7 @@ mark{background:#ffe58a;padding:0 .1em;border-radius:3px}
 #fotos{background:var(--paper)}
 .gallery{columns:4 220px;column-gap:14px}
 .gallery button{display:block;width:100%;margin:0 0 14px;padding:0;border:0;border-radius:14px;overflow:hidden;cursor:zoom-in;background:var(--peach);break-inside:avoid}
-.gallery img{width:100%;height:auto;transition:transform .35s}
+.gallery img{width:100%;height:auto;background:var(--peach);transition:transform .35s}
 .gallery button:hover img{transform:scale(1.04)}
 .gal-status{color:var(--ink-2);padding:20px 0}
 .gal-foot{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -321,7 +321,7 @@ footer a{color:#fff}
       <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
     </div>
     <div class="gal-foot">
-      <a class="btn btn-ghost" id="flickrLink" href="https://www.flickr.com/photos/167401187@N06/albums/72177720336258871" target="_blank" rel="noopener">Ver álbum completo no Flickr ↗</a>
+      <a class="btn btn-ghost" id="albumLink" href="https://photos.app.goo.gl/umKXMonhrW921ksP6" target="_blank" rel="noopener">Ver álbum completo no Google Fotos ↗</a>
     </div>
   </div>
 </section>
@@ -399,8 +399,6 @@ footer a{color:#fff}
 /* ===== Contatos ===== */
 const WA_NUMBER = '5548984183535';
 const EMAIL = 'hsanches@mpsc.mp.br';
-const FLICKR_SET = '72177720336258871';
-const FLICKR_USER = '167401187@N06';
 const waLink = t => 'https://wa.me/' + WA_NUMBER + (t ? '?text=' + encodeURIComponent(t) : '');
 document.querySelectorAll('[data-wa]').forEach(a => a.href = waLink('Olá! Gostaria de falar com a chapa Ação e Participação.'));
 
@@ -649,35 +647,26 @@ document.getElementById('team').addEventListener('click', ev => {
 document.querySelector('.lead-card img').style.cursor = 'zoom-in';
 document.querySelector('.lead-card img').addEventListener('click', () => openLB(teamCards, 0));
 
-/* ===== Flickr ===== */
+/* ===== Fotos (Google Fotos, via fotos.json gerado pela GitHub Action) ===== */
 let galItems = [];
-function isFileName(t){ return !t || /^(whatsapp image|img[_-]?\d|dsc|p\d{6,}|\d{6,})/i.test(t); }
-window.flickrCb = function(data){
-  const g = document.getElementById('gallery');
-  const items = (data && data.items) || [];
-  if(!items.length){ g.innerHTML = '<p class="gal-status">Em breve, novas fotos da campanha.</p>'; return; }
-  galItems = items.map(it => ({
-    thumb: it.media.m.replace('_m.', '_z.'),
-    src: it.media.m.replace('_m.', '_b.'),
-    cap: isFileName(it.title) ? '' : it.title,
-    link: it.link
-  }));
-  g.innerHTML = galItems.map((p,i) => `<button data-i="${i}" aria-label="Ampliar foto ${i+1}"><img src="${p.thumb}" alt="${esc(p.cap || 'Foto da campanha Ação e Participação')}" loading="lazy"></button>`).join('');
-};
+fetch('fotos.json?_=' + Date.now(), {cache:'no-store'})
+  .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(data => {
+    const g = document.getElementById('gallery');
+    const items = (data && data.photos) || [];
+    if(!items.length){ g.innerHTML = '<p class="gal-status">Em breve, novas fotos da campanha.</p>'; return; }
+    galItems = items.map(p => ({ thumb: p.url + '=w800', src: p.url + '=w1800', w: p.w, h: p.h }));
+    g.innerHTML = galItems.map((p,i) => `<button data-i="${i}" aria-label="Ampliar foto ${i+1}"><img src="${p.thumb}" width="${p.w}" height="${p.h}" alt="Foto da campanha Ação e Participação" loading="lazy" referrerpolicy="no-referrer"></button>`).join('');
+  })
+  .catch(() => { document.getElementById('gallery').innerHTML = '<p class="gal-status">Não foi possível carregar as fotos agora. Veja o álbum diretamente no Google Fotos.</p>'; });
 document.getElementById('gallery').addEventListener('click', ev => {
-  const b = ev.target.closest('button[data-i]'); if(b) openLB(galItems.map(p => ({src:p.src, cap:p.cap, link:p.link})), +b.dataset.i);
+  const b = ev.target.closest('button[data-i]'); if(b) openLB(galItems.map(p => ({src:p.src, cap:''})), +b.dataset.i);
 });
-(function loadFlickr(){
-  const s = document.createElement('script');
-  s.src = `https://www.flickr.com/services/feeds/photoset.gne?set=${FLICKR_SET}&nsid=${encodeURIComponent(FLICKR_USER)}&lang=pt-br&format=json&jsoncallback=flickrCb&_=${Date.now()}`;
-  s.onerror = () => { document.getElementById('gallery').innerHTML = '<p class="gal-status">Não foi possível carregar as fotos agora. Veja o álbum diretamente no Flickr.</p>'; };
-  document.body.appendChild(s);
-})();
 
 /* ===== Lightbox ===== */
 const lb = document.getElementById('lb'), lbImg = document.getElementById('lbImg'), lbCap = document.getElementById('lbCap');
 let lbList = [], lbI = 0, lastFocus = null;
-function showLB(){ const it = lbList[lbI]; lbImg.src = it.src; lbImg.alt = it.cap || ''; lbCap.innerHTML = (it.cap ? esc(it.cap) : '') + (it.link ? `${it.cap?' · ':''}<a href="${it.link}" target="_blank" rel="noopener">ver no Flickr</a>` : '') + ` <span style="opacity:.6">(${lbI+1}/${lbList.length})</span>`; }
+function showLB(){ const it = lbList[lbI]; lbImg.src = it.src; lbImg.alt = it.cap || ''; lbCap.innerHTML = (it.cap ? esc(it.cap) : '') + (it.link ? `${it.cap?' · ':''}<a href="${it.link}" target="_blank" rel="noopener">ver álbum</a>` : '') + ` <span style="opacity:.6">(${lbI+1}/${lbList.length})</span>`; }
 function openLB(list, i){ lbList = list; lbI = i; lastFocus = document.activeElement; showLB(); lb.classList.add('open'); document.body.style.overflow='hidden'; document.getElementById('lbClose').focus(); }
 function closeLB(){ lb.classList.remove('open'); document.body.style.overflow=''; lbImg.src=''; if(lastFocus) lastFocus.focus(); }
 const step = d => { lbI = (lbI + d + lbList.length) % lbList.length; showLB(); };

@@ -1,0 +1,37 @@
+name: Atualizar fotos do álbum
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/atualizar-fotos.mjs
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atualizar-fotos
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/atualizar-fotos.mjs
+      - name: Publicar alterações
+        run: |
+          if git diff --quiet -- fotos.json; then
+            echo "Nenhuma foto nova."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add fotos.json
+          git commit -m "Atualiza fotos do álbum"
+          git push
